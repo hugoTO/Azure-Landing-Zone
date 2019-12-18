@@ -1,0 +1,67 @@
+$Location              = "eastasia"
+$vNetResourceGroupName = "MSHKZone-VNet-rg"
+$VMResourceGroupName   = "MSHKZone-Migrate-rg"
+$SvcResourceGroupName  = "MSHKZone-SharedSvcs-rg"
+$VMName                = "MSHKZone-VM-JB1"
+$VNetName              = "MSHKZone-vNET"
+$SubnetName            = "JumpboxSubnet"
+$StorageAccountName    = "mshkzonesharedsvcsdiagu"
+$PIPName               = "MSHKZone-VM-JB1-PublicIP01"
+$NICName               = "MSHKZone-VM-JB1-NIC01"
+$NSGName               = "MSHKZone-VM-JB1-NSG01"
+$DiskName              = "MSHKZone-VM-JB1-DISK01.vhd"
+$DiskSize              = "128"
+$DiskAccountType       = "PremiumLRS"
+$VMSize                = "Standard_D2s_v3"
+$PublisherName         = "MicrosoftWindowsServer"
+$Offer                 = "WindowsServer"
+$Skus                  = "2016-Datacenter"
+$Version               = "latest"
+$SubscriptionId        = "<to be changed>"
+
+# Login Azure
+Connect-AzAccount
+
+# Set a subscription
+Set-AzContext -SubscriptionId $SubscriptionId
+
+# Create a virtual network
+$VNet = Get-AzVirtualNetwork -ResourceGroupName $vNetResourceGroupName -Name $VNetName
+
+# Create a subnet configuration
+$SubnetConfig = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VNet
+
+# Create a public IP address and specify a DNS name
+$PIP = New-AzPublicIpAddress -ResourceGroupName $VMResourceGroupName -Location $Location `
+    -AllocationMethod Static -IdleTimeoutInMinutes 4 -Name $PIPName
+
+# Create an inbound network security group rule for port 3389
+$NSGRuleRDP = New-AzNetworkSecurityRuleConfig -Name $NSGName -Protocol TCP `
+    -Direction Inbound -Priority 1000 -SourceAddressPrefix * -SourcePortRange * -DestinationAddressPrefix * `
+    -DestinationPortRange 3389 -Access Allow
+
+# Create a network security group
+$NSG = New-AzNetworkSecurityGroup -ResourceGroupName $VMResourceGroupName -Location $Location `
+    -Name $NSGName -SecurityRules $NSGRuleRDP
+
+# Create a virtual network card and associate with public IP address and NSG
+$NICNetwork = $VNet.Subnets | ?{$_.Name -eq $SubnetName}
+$NIC = New-AzNetworkInterface -Name $NICName -ResourceGroupName $VMResourceGroupName -Location $Location `
+    -SubnetId $NICNetwork.Id -PublicIpAddressId $PIP.Id -NetworkSecurityGroupId $NSG.Id
+
+# Define a credential object
+$VMCred = Get-Credential
+
+# Create a virtual machine configuration
+$VMConfig = New-AzVMConfig -VMName $VMName -VMSize $VMSize
+$VMConfig = Set-AzVMOperatingSystem -VM $VMConfig -ComputerName $VMName -Credential $VMCred -Windows
+$VMConfig = Set-AzVMOSDisk -VM $VMConfig -Name $DiskName -CreateOption FromImage
+$VMConfig = Add-AzVMNetworkInterface -VM $VMConfig -Id $NIC.Id
+$VMConfig = Set-AzVMBootDiagnostic -VM $VMConfig -Enable -ResourceGroupName $SvcResourceGroupName -StorageAccountName $StorageAccountName
+$VMConfig = Set-AzVMSourceImage -VM $VMConfig -PublisherName $PublisherName -Offer $Offer -Skus $Skus -Version $Version
+
+# Create the virtual machine with Managed Disk
+New-AzVM $VMConfig -ResourceGroupName $VMResourceGroupName -Location $Location
+
+# Clear variables
+Remove-Variable * -ErrorAction SilentlyContinue

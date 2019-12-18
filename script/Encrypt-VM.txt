@@ -1,0 +1,42 @@
+﻿$Location              = "eastasia"
+$vNetResourceGroupName = "MSHKZone-VNet-rg"
+$VMResourceGroupName   = "MSHKZone-Migrate-rg"
+$SvcResourceGroupName  = "MSHKZone-SharedSvcs-rg"
+$KeyVaultName          = "MSHKZone-sharedsvcs-kv"
+$MyKey                 = "MSHKKey"
+$VMName                = "MSHKZone-VM-JB1", "MSHKZone-VM-SR1"
+$SubscriptionId        = "<to be changed>"
+
+# Login Azure
+Connect-AzAccount
+
+# Set a subscription
+Set-AzContext -SubscriptionId $SubscriptionId
+
+# Create an Azure Key Vault
+Add-AzKeyVaultKey -VaultName $KeyVaultName -Name $MyKey -Destination "Software"
+
+# Encrypt Virtual Machine
+$KeyVault = Get-AzKeyVault -VaultName $KeyVaultName -ResourceGroupName $SvcResourceGroupName
+$DiskEncryptionKeyVaultUrl = $KeyVault.VaultUri
+$KeyVaultResourceId = $KeyVault.ResourceId
+$KeyEncryptionKeyUrl = (Get-AzKeyVaultKey -VaultName $KeyVaultName -Name $MyKey).Key.kid
+
+# Jumpbox Virtual Machine
+Set-AzVMDiskEncryptionExtension -ResourceGroupName $VMResourceGroupName `
+    -VMName $VMName[0] `
+    -DiskEncryptionKeyVaultUrl $DiskEncryptionKeyVaultUrl `
+    -DiskEncryptionKeyVaultId $KeyVaultResourceId `
+    -KeyEncryptionKeyUrl $KeyEncryptionKeyUrl `
+    -KeyEncryptionKeyVaultId $KeyVaultResourceId
+
+# Server Virtual Machine
+Set-AzVMDiskEncryptionExtension -ResourceGroupName $VMResourceGroupName `
+    -VMName $VMName[1] `
+    -DiskEncryptionKeyVaultUrl $DiskEncryptionKeyVaultUrl `
+    -DiskEncryptionKeyVaultId $KeyVaultResourceId `
+    -KeyEncryptionKeyUrl $KeyEncryptionKeyUrl `
+    -KeyEncryptionKeyVaultId $KeyVaultResourceId
+
+# Clear variables
+Remove-Variable * -ErrorAction SilentlyContinue
