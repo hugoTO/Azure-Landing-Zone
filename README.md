@@ -7,13 +7,14 @@
 ## Table of content ##
 
 1. Prerequisite
-2. Create Blueprint
-3. Add RDP Rule from Internet to Jumpbox Subnet
-4. Create Virtual Machine
-5. Encrypt Virtual Machines
-6. Firewalls Configuration
-7. Log Analytics Configuration
-8. Security Center Configuration
+2. Cerate Azure Active Diretory
+3. Create Blueprint
+4. Add RDP Rule from Internet to Jumpbox Subnet
+5. Create Virtual Machine
+6. Encrypt Virtual Machines
+7. Firewalls Configuration
+8. Log Analytics Configuration
+9. Security Center Configuration
 
 ## Prerequisite ##
 
@@ -27,6 +28,9 @@ A Azure subscription is required. If your organization already using Azure, plea
 4. Type ***Install-Module -Name -Az -AllowClobber -Scope AllUsers*** and press enter
 5. Type ***Get-InstalledModule -Name -Az -AllVersions | select Name, Version*** and press enter to see if Az Module is installed
 
-## Create Blueprint ##
+## Cerate Azure Active Diretory ##
+1. Go to Azure Portal, search ***Azure Active Directory***
+2. Go to Azure Active Directory and click ***Groups***
+3. Click ***New group***
 
 
